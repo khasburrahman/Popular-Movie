@@ -4,6 +4,7 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.Uri;
 import android.text.TextUtils;
+import android.util.Log;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -18,12 +19,26 @@ import javax.net.ssl.HttpsURLConnection;
  */
 
 public class NetworkUtils {
+    //konstan untuk view
+    public static final String POPULAR = "popular";
+    public static final String TOP = "top";
+    public static final String FAVORITE = "fav";
+    public static final String VIDEOS = "vid";
+    public static final String REVIEWS = "review";
 
     /**
      * URL API untuk popular dan top rated movie
      */
     final static String MOVIEDB_API_3_POPULAR_URL = "https://api.themoviedb.org/3/movie/popular";
     final static String MOVIEDB_API_3_TOP_URL = "https://api.themoviedb.org/3/movie/top_rated";
+    final static String MOVIEDB_API_3_DETAIL_MOVIE_URL = "https://api.themoviedb.org/3/movie";
+    static String MOVIEDB_API_3_REVIEW(String movieid){
+        return "https://api.themoviedb.org/3/movie/"+movieid+"/reviews";
+    }
+    static String MOVIEDB_API_3_VIDEOS(String movieid){
+        return "https://api.themoviedb.org/3/movie/"+movieid+"/videos";
+    }
+
     final static String MOVIEDB_POSTER_BASE_URL = "http://image.tmdb.org/t/p/w185/";
 
     /**
@@ -42,24 +57,38 @@ public class NetworkUtils {
      * @param apiKey apikey moviedb 3
      * @param language untuk bahasa default "en-US"
      * @param region untuk region default ID
+     * @param movieId
      * @return url api yang dibuat
      */
-    public static URL buildURL(String type, Integer page, String apiKey, String language, String region){
+    public static URL buildURL(String type, Integer page, String apiKey, String language, String region, String movieId){
         Uri.Builder builderUri;
-        if (type.equals("popular"))
+        if (type.equals(FAVORITE) || type.equals(REVIEWS) || type.equals(VIDEOS)){
+            if (movieId == null){
+                Log.d("URL BUILDEr", "buildURL: movie id belum dimasukin");
+                return null;
+            }
+        }
+
+        if (type.equals(POPULAR))
             builderUri = Uri.parse(MOVIEDB_API_3_POPULAR_URL).buildUpon();
-        else if (type.equals("top"))
+        else if (type.equals(TOP))
             builderUri = Uri.parse(MOVIEDB_API_3_TOP_URL).buildUpon();
+        else if (type.equals(FAVORITE))
+            builderUri = Uri.parse(MOVIEDB_API_3_DETAIL_MOVIE_URL+"/"+movieId).buildUpon();
+        else if (type.equals(VIDEOS))
+            builderUri = Uri.parse(MOVIEDB_API_3_VIDEOS(movieId)).buildUpon();
+        else if (type.equals(REVIEWS))
+            builderUri = Uri.parse(MOVIEDB_API_3_REVIEW(movieId)).buildUpon();
         else
             return null;
         builderUri.appendQueryParameter(PARAM_api_key, apiKey);
-        if (page != null && page != 0){
+        if (page != null && page != 0 && movieId == null){
             builderUri.appendQueryParameter(PARAM_page, page.toString());
         }
         if (!isEmptyString(language)){
             builderUri.appendQueryParameter(PARAM_language, language);
         }
-        if (!isEmptyString(region)){
+        if (!isEmptyString(region) && movieId == null){
             builderUri.appendQueryParameter(PARAM_region, region);
         }
         Uri uri = builderUri.build();

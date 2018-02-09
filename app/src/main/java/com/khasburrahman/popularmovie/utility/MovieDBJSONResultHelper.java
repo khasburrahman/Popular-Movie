@@ -1,6 +1,8 @@
 package com.khasburrahman.popularmovie.utility;
 
 import com.khasburrahman.popularmovie.model.Movie;
+import com.khasburrahman.popularmovie.model.Reviews;
+import com.khasburrahman.popularmovie.model.VideoMovieDB;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -31,6 +33,32 @@ public class MovieDBJSONResultHelper {
             e.printStackTrace();
         }
         return listMovie;
+    }
+
+    public static ArrayList<Reviews> getReviewList(JSONObject jsonObject){
+        ArrayList<Reviews> list = new ArrayList<>();
+        try {
+            JSONArray jsonArray = jsonObject.getJSONArray("results");
+            for (int i = 0; i < jsonArray.length(); i++){
+                list.add(new Reviews(jsonArray.getJSONObject(i)));
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return list;
+    }
+
+    public static ArrayList<VideoMovieDB> getVideoList(JSONObject jsonObject){
+        ArrayList<VideoMovieDB> list = new ArrayList<>();
+        try {
+            JSONArray jsonArray = jsonObject.getJSONArray("results");
+            for (int i = 0; i < jsonArray.length(); i++){
+                list.add(new VideoMovieDB(jsonArray.getJSONObject(i)));
+            }
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+        return list;
     }
 
     public static int getTotalResults(JSONObject jsonObject){

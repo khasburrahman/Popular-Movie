@@ -25,12 +25,6 @@ public class Movie implements Parcelable {
             this.original_language = jsonMovieObject.getString("original_language");
             this.original_title = jsonMovieObject.getString("original_title");
 
-            //masukkan array genre id ke field genre_ids
-            JSONArray jsonArrayGenreId = jsonMovieObject.getJSONArray("genre_ids");
-            this.genre_ids = new String[jsonArrayGenreId.length()];
-            for (int i = 0; i < jsonArrayGenreId.length(); i++){
-                this.genre_ids[i] = jsonArrayGenreId.getString(i);
-            }
 
             this.backdrop_path = jsonMovieObject.getString("backdrop_path");
             this.adult = jsonMovieObject.getString("adult");
@@ -56,8 +50,6 @@ public class Movie implements Parcelable {
 
     private String original_language;
 
-    private String[] genre_ids;
-
     private String release_date;
 
     private String original_title;
@@ -78,7 +70,6 @@ public class Movie implements Parcelable {
         title = in.readString();
         overview = in.readString();
         original_language = in.readString();
-        genre_ids = in.createStringArray();
         release_date = in.readString();
         original_title = in.readString();
         vote_count = in.readString();
@@ -169,16 +160,6 @@ public class Movie implements Parcelable {
         this.original_language = original_language;
     }
 
-    public String[] getGenre_ids ()
-    {
-        return genre_ids;
-    }
-
-    public void setGenre_ids (String[] genre_ids)
-    {
-        this.genre_ids = genre_ids;
-    }
-
     public String getRelease_date ()
     {
         return release_date;
@@ -242,7 +223,7 @@ public class Movie implements Parcelable {
     @Override
     public String toString()
     {
-        return "ClassPojo [vote_average = "+vote_average+", backdrop_path = "+backdrop_path+", adult = "+adult+", id = "+id+", title = "+title+", overview = "+overview+", original_language = "+original_language+", genre_ids = "+genre_ids+", release_date = "+release_date+", original_title = "+original_title+", vote_count = "+vote_count+", poster_path = "+poster_path+", video = "+video+", popularity = "+popularity+"]";
+        return "ClassPojo [vote_average = "+vote_average+", backdrop_path = "+backdrop_path+", adult = "+adult+", id = "+id+", title = "+title+", overview = "+overview+", original_language = "+original_language+", release_date = "+release_date+", original_title = "+original_title+", vote_count = "+vote_count+", poster_path = "+poster_path+", video = "+video+", popularity = "+popularity+"]";
     }
 
     @Override
@@ -259,7 +240,6 @@ public class Movie implements Parcelable {
         parcel.writeString(title);
         parcel.writeString(overview);
         parcel.writeString(original_language);
-        parcel.writeStringArray(genre_ids);
         parcel.writeString(release_date);
         parcel.writeString(original_title);
         parcel.writeString(vote_count);
