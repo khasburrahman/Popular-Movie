@@ -13,6 +13,7 @@ import android.os.Bundle;
 import android.support.v7.widget.GridLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.TextUtils;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -34,8 +35,8 @@ import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity implements LoaderManager.LoaderCallbacks<String>, AdapterPopularMovie.PopularMovieItemClickListener {
     //view yang dipakai
-    RecyclerView rv_listPopularMovie;
-    ProgressBar pb_loadingPopularMovie;
+    static RecyclerView rv_listPopularMovie;
+    static ProgressBar pb_loadingPopularMovie;
 
     //adapter
     AdapterPopularMovie adapterPopularMovie;
@@ -84,7 +85,12 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         //recycler view, pakai grid layout manager, fixed size == false
         rv_listPopularMovie = findViewById(R.id.rv_listPopularMovie);
-        GridLayoutManager gridLayoutManager = new GridLayoutManager(this,2);
+        int orientation = getResources().getConfiguration().orientation;
+        GridLayoutManager gridLayoutManager;
+        if (orientation == getResources().getConfiguration().ORIENTATION_PORTRAIT)
+            gridLayoutManager = new GridLayoutManager(this,2);
+        else
+            gridLayoutManager = new GridLayoutManager(this,4);
         rv_listPopularMovie.setLayoutManager(gridLayoutManager);
         rv_listPopularMovie.setHasFixedSize(false);
         pb_loadingPopularMovie = findViewById(R.id.pb_loading_popular_movie);
@@ -106,12 +112,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
         //load typeview dari bundle
         if (savedInstanceState != null){
-            this.setTitle(savedInstanceState.getString(SAVE_TITLE));
-            this.pb_loadingPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_PROGRESSBAR));
-            this.rv_listPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_RECYCLERVIEW));
-            //this.listMovie = savedInstanceState.getParcelableArrayList(SAVE_BUNDLE_LIST_MOVIE);
-            this.typeMovie = savedInstanceState.getString(ID_BUNDLE_TYPE_SHOWN);
-            this.TOTAL_FAVORITE = savedInstanceState.getInt(ID_BUNDLE_TOTAL_FAV);
+            onRestoreInstanceState(savedInstanceState);
             refreshView(typeMovie);
         } else {
             this.typeMovie = REFRESH_POPULAR;
@@ -124,12 +125,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     protected void onStart() {
         super.onStart();
 
-        boolean isOnline = NetworkUtils.isOnline((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE));
-        if (isOnline) {
-            loadMovie(this.typeMovie, 1, null);
 
-        } else
-            Toast.makeText(this, "Please Ensure Network Connection is Established", Toast.LENGTH_SHORT).show();
 
     }
 
@@ -139,43 +135,95 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         return true;
     }
 
+    private static class LoaderTask extends  AsyncTaskLoader<String>{
+        int i;
+        Bundle args;
+
+        public LoaderTask(Context context) {
+            super(context);
+        }
+
+        public void setIdBundle(int id, Bundle args){
+            this.i = id;
+            this.args = args;
+        }
+
+
+        @Override
+        protected void onStartLoading() {
+            if (args == null){
+                return;
+            }
+            if (i == ID_POPULAR_MOVIE_LOADER) {
+                rv_listPopularMovie.setVisibility(View.INVISIBLE);
+                pb_loadingPopularMovie.setVisibility(View.VISIBLE);
+            }
+            forceLoad();
+        }
+
+        @Override
+        public String loadInBackground() {
+            String queryURLString = args.getString(ID_BUNDLE_MOVIEDB_QUERY_EXTRA);
+            if (queryURLString == null || TextUtils.isEmpty(queryURLString)){
+                return null;
+            }
+            try {
+                URL queryURL = new URL(queryURLString);
+                String result = NetworkUtils.getResponseFromHTTPUrl(queryURL);
+                return result;
+
+            } catch (IOException e){
+                e.printStackTrace();
+                return null;
+            }
+        }
+    }
+
     @Override
     public Loader<String> onCreateLoader(final int i, final Bundle args) {
-        return new AsyncTaskLoader<String>(this) {
-            @Override
-            protected void onStartLoading() {
-                if (args == null){
-                    return;
-                }
-                if (i == ID_POPULAR_MOVIE_LOADER) {
-                    rv_listPopularMovie.setVisibility(View.INVISIBLE);
-                    pb_loadingPopularMovie.setVisibility(View.VISIBLE);
-                }
-                forceLoad();
-            }
-
-            @Override
-            public String loadInBackground() {
-                String queryURLString = args.getString(ID_BUNDLE_MOVIEDB_QUERY_EXTRA);
-                if (queryURLString == null || TextUtils.isEmpty(queryURLString)){
-                    return null;
-                }
-                try {
-                    URL queryURL = new URL(queryURLString);
-                    String result = NetworkUtils.getResponseFromHTTPUrl(queryURL);
-                    return result;
-
-                } catch (IOException e){
-                    e.printStackTrace();
-                    return null;
-                }
-            }
-        };
+        Log.d("LOADING DATA", "onCreateLoader: "+typeMovie);
+        LoaderTask task = new LoaderTask(this);
+        task.setIdBundle(i, args);
+        return task;
+//        return new AsyncTaskLoader<String>(this) {
+//            @Override
+//            protected void onStartLoading() {
+//                if (args == null){
+//                    return;
+//                }
+//                if (i == ID_POPULAR_MOVIE_LOADER) {
+//                    rv_listPopularMovie.setVisibility(View.INVISIBLE);
+//                    pb_loadingPopularMovie.setVisibility(View.VISIBLE);
+//                }
+//                forceLoad();
+//            }
+//
+//            @Override
+//            public String loadInBackground() {
+//                String queryURLString = args.getString(ID_BUNDLE_MOVIEDB_QUERY_EXTRA);
+//                if (queryURLString == null || TextUtils.isEmpty(queryURLString)){
+//                    return null;
+//                }
+//                try {
+//                    URL queryURL = new URL(queryURLString);
+//                    String result = NetworkUtils.getResponseFromHTTPUrl(queryURL);
+//                    return result;
+//
+//                } catch (IOException e){
+//                    e.printStackTrace();
+//                    return null;
+//                }
+//            }
+//        };
     }
 
     private void loadMovie(String type, int page, String movieId){
         String apiKey = getResources().getString(R.string.moviedb_api_3_key);
         URL apiURL = NetworkUtils.buildURL(type, page, apiKey, "en-US", "ID", movieId);
+        if (apiURL == null){
+            Log.d("LOAD MOVIE", "loadMovie: yang dimasukkan null,"+type+","+page+","+movieId);
+            return;
+        }
 
         Bundle queryBundle = new Bundle();
         queryBundle.putString(ID_BUNDLE_MOVIEDB_QUERY_EXTRA, apiURL.toString());
@@ -193,8 +241,10 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         Loader<String> movieLoader = loaderManager.getLoader(ID_LOADER);
 
         if (movieLoader == null){
+            Log.d("LOADING DATA FROM NULL LOADER", "loadMovie: "+this.typeMovie);
             loaderManager.initLoader(ID_LOADER, queryBundle, this);
         } else {
+            Log.d("LOADING DATA FROM NOT NULL LOADER", "loadMovie: "+typeMovie);
             loaderManager.restartLoader(ID_LOADER, queryBundle, this);
         }
     }
@@ -228,6 +278,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     public void onLoadFinishedMovieList(JSONObject jsonObjectMovieDB){
+        Log.d("LOADING DATA FINISHED", "onLoadFinishedMovieList: "+typeMovie);
         this.listMovie = MovieDBJSONResultHelper.getMovieList(jsonObjectMovieDB);
         this.TOTAL_PAGES = MovieDBJSONResultHelper.getTotalPages(jsonObjectMovieDB);
         this.TOTAL_RESULTS = MovieDBJSONResultHelper.getTotalResults(jsonObjectMovieDB);
@@ -235,6 +286,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
     private static int mRequestFavoriteMovie = 0;
     public void onLoadFinishedDetailMovie(JSONObject jsonObject){
+        Log.d("LOADING DATA FINISHED", "onLoadFinishedDetailMovie: "+typeMovie);
         this.listMovie.add(new Movie(jsonObject));
         this.TOTAL_PAGES = 0;
         this.TOTAL_RESULTS = 0;
@@ -242,6 +294,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
     @Override
     public void onLoaderReset(Loader<String> loader) {
+        Log.d("LOADING DATA RESET", "onLoaderReset: "+typeMovie);
 
     }
 
@@ -253,6 +306,16 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         outState.putInt(SAVE_VISIBILITY_RECYCLERVIEW, this.rv_listPopularMovie.getVisibility());
         outState.putInt(ID_BUNDLE_TOTAL_FAV, this.TOTAL_FAVORITE);
         outState.putString(ID_BUNDLE_TYPE_SHOWN, this.typeMovie);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        this.setTitle(savedInstanceState.getString(SAVE_TITLE));
+        this.pb_loadingPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_PROGRESSBAR));
+        this.rv_listPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_RECYCLERVIEW));
+        this.typeMovie = savedInstanceState.getString(ID_BUNDLE_TYPE_SHOWN);
+        this.TOTAL_FAVORITE = savedInstanceState.getInt(ID_BUNDLE_TOTAL_FAV);
     }
 
     @Override
@@ -293,8 +356,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         } else{
             //TODO bikin favorit
             this.rv_listPopularMovie.setVisibility(View.INVISIBLE);
-            this.listMovie.clear();
-            this.adapterPopularMovie.notifyDataSetChanged();
+            adapterPopularMovie.clearData();
             ArrayList<String> listFavoriteMovie = FavoriteMovieHelper.getAllFavoriteMovie(sharedPreferences);
             mRequestFavoriteMovie = listFavoriteMovie.size();
             for(String movieId : listFavoriteMovie){
@@ -306,11 +368,24 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     protected void onPause() {
         super.onPause();
+        this.listMovie.clear();
+        this.adapterPopularMovie.notifyDataSetChanged();
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        Log.d("LOADING DATA ON RESUME", "onResume: "+this.typeMovie+", datasize : "+listMovie.size());
+        if (this.listMovie.size() > 0){
+            this.listMovie.clear();
+        }
+        boolean isOnline = NetworkUtils.isOnline((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE));
+        if (isOnline) {
+            loadMovie(this.typeMovie, 1, null);
+
+        } else
+            Toast.makeText(this, "Please Ensure Network Connection is Established", Toast.LENGTH_SHORT).show();
+
     }
 
     @Override

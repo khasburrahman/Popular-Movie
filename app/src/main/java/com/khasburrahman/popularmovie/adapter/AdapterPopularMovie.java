@@ -63,6 +63,11 @@ public class AdapterPopularMovie extends RecyclerView.Adapter<AdapterPopularMovi
         notifyDataSetChanged();
     }
 
+    public void clearData(){
+        this.listMovie.clear();
+        notifyDataSetChanged();
+    }
+
     class ViewHolderPopularMovie extends RecyclerView.ViewHolder implements View.OnClickListener {
         ImageView iv_poster;
         FrameLayout frameLayout;

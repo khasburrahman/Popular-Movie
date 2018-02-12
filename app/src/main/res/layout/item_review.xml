@@ -4,18 +4,33 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_margin="3dp"
+        android:layout_height="1dp"
+        android:background="@color/separator"></View>
+
     <TextView
-        android:layout_width="wrap_content"
-        android:text="dsad"
-        android:layout_height="wrap_content"
         android:id="@+id/tv_review_author"
-        />
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="6dp"
+        android:text="dsadx"
+        android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="dsada"
+        android:paddingHorizontal="6dp"
+        android:maxLength="200"
         android:id="@+id/tv_review_content"
         />
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_margin="3dp"
+        android:layout_height="1dp"
+        android:background="@color/separator"></View>
 
 </LinearLayout>

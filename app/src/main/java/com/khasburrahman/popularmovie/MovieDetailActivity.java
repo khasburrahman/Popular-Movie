@@ -54,6 +54,8 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
     ProgressBar progressBarVideo;
     LinearLayout containerReview;
     LinearLayout containerVideo;
+    TextView tv_reviewnone;
+    TextView tv_videonone;
 
     ArrayList<Reviews> mReview = new ArrayList<>();
     ArrayList<VideoMovieDB> mVideo = new ArrayList<>();
@@ -81,6 +83,8 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
         progressBarVideo = findViewById(R.id.pb_trailer);
         containerReview = findViewById(R.id.container_reviews);
         containerVideo = findViewById(R.id.container_trailer);
+        tv_reviewnone = findViewById(R.id.tv_staus_review_not_available);
+        tv_videonone = findViewById(R.id.tv_staus_trailer_not_available);
 
         sharedPreferences = getSharedPreferences(MainActivity.ID_APP_SHARED_PREF, MODE_PRIVATE);
 
@@ -115,6 +119,7 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
             tv_synopsis.setText(movie.getOverview());
             tv_rating.setText(movie.getVote_average()+" / 10");
             tv_releasse_date.setText(movie.getRelease_date());
+            tv_running_time.setText(movie.getOriginal_language());
         } else {
             Toast.makeText(this, "Error saat mengambil parceable", Toast.LENGTH_SHORT).show();
         }
@@ -230,6 +235,7 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
             this.containerReview.setVisibility(View.VISIBLE);
             for(Reviews reviews : this.mReview){
                 LayoutInflater layoutInflater = LayoutInflater.from(this);
+                int layout = R.layout.item_review;
                 View view = layoutInflater.inflate(R.layout.item_review, null, false);
                 TextView textAuthor = view.findViewById(R.id.tv_review_author);
                 textAuthor.setText(reviews.author);
@@ -238,6 +244,9 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
                 this.containerReview.addView(view);
             }
         } else {
+            this.containerReview.setVisibility(View.INVISIBLE);
+            this.progressBarReview.setVisibility(View.INVISIBLE);
+            this.tv_reviewnone.setVisibility(View.VISIBLE);
             Log.d("UPDATE REVIEW", "updateReviewView: data ga ada");
         }
     }
