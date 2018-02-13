@@ -36,6 +36,17 @@ public class Movie implements Parcelable {
         }
     }
 
+    public Movie(String id, String title, String original_language, String release_date,
+                 String poster_path, String overview, String vote_average){
+        this.id = id;
+        this.title = title;
+        this.original_language = original_language;
+        this.release_date = release_date;
+        this.poster_path = poster_path;
+        this.overview = overview;
+        this.vote_average = vote_average;
+    }
+
     private String vote_average;
 
     private String backdrop_path;

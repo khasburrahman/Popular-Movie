@@ -1,8 +1,10 @@
 package com.khasburrahman.popularmovie;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.ConnectivityManager;
+import android.net.Uri;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
 import android.support.v4.content.Loader;
@@ -22,6 +24,7 @@ import android.widget.RelativeLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.khasburrahman.popularmovie.db.FavoriteMovieDBHelper;
 import com.khasburrahman.popularmovie.model.Movie;
 import com.khasburrahman.popularmovie.model.Reviews;
 import com.khasburrahman.popularmovie.model.VideoMovieDB;
@@ -47,6 +50,8 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
     TextView tv_synopsis;
     boolean isFavorite;
     SharedPreferences sharedPreferences;
+    boolean isLoadedReview = false;
+    boolean isLoadedVideos = false;
 
     Movie movie;
 
@@ -61,12 +66,14 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
     ArrayList<VideoMovieDB> mVideo = new ArrayList<>();
 
     final static int ID_LOADER_REVIEW = 2;
-    final static int ID_LOADER_VIDEO =1;
+    final static int ID_LOADER_VIDEO =895;
 
     final static String ID_LOADER_EXTRA_URL = "url";
+    FavoriteMovieDBHelper mDatabaseFavorite;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        Log.d("LIFECYCLE", "onCreate: ");
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_movie_detail);
         setTitle("Detail Movie");
@@ -87,6 +94,7 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
         tv_videonone = findViewById(R.id.tv_staus_trailer_not_available);
 
         sharedPreferences = getSharedPreferences(MainActivity.ID_APP_SHARED_PREF, MODE_PRIVATE);
+        mDatabaseFavorite = new FavoriteMovieDBHelper(this);
 
         //get parceable dari aktivitas sebelumnya
         movie = getIntent().getExtras().getParcelable("movie");
@@ -101,11 +109,11 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
             @Override
             public void onClick(View view) {
                 if (!isFavorite){
-                    FavoriteMovieHelper.addMoviesIdToFavorite(movie.getId(), sharedPreferences);
+                    mDatabaseFavorite.addFavoriteMovie(movie);
                     btn_favorite.setText("Delete as Favorite");
                     Toast.makeText(MovieDetailActivity.this, "Added as Favorite", Toast.LENGTH_SHORT).show();
                 } else {
-                    FavoriteMovieHelper.removeMovieIdFromFavorite(movie.getId(), sharedPreferences);
+                    mDatabaseFavorite.deleteFavoriteMovie(movie.getId());
                     btn_favorite.setText("Mark as Favorite");
                     Toast.makeText(MovieDetailActivity.this, "Removed as Favorite", Toast.LENGTH_SHORT).show();
                 }
@@ -124,13 +132,18 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
             Toast.makeText(this, "Error saat mengambil parceable", Toast.LENGTH_SHORT).show();
         }
 
+        if (savedInstanceState != null){
+            this.isLoadedVideos = savedInstanceState.getBoolean("isLoadedVideos");
+            this.isLoadedReview = savedInstanceState.getBoolean("isLoadedReview");
+        }
+
 
     }
 
     private void loadData(){
+        Log.d("LIFECYCLE REVIEW", "loadData: ");
         String apiKey = getResources().getString(R.string.moviedb_api_3_key);
         URL apiURLReview = NetworkUtils.buildURL(NetworkUtils.REVIEWS, 1, apiKey, "en-US", "ID", movie.getId());
-        URL apiURLVideo = NetworkUtils.buildURL(NetworkUtils.VIDEOS, 1, apiKey, "en-US", "ID", movie.getId());
 
         if (apiURLReview == null){
             return;
@@ -149,14 +162,43 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
         }
     }
 
+    private void loadVideos(){
+        Log.d("LIFECYCLE VIDEOS", "loadData: ");
+        String apiKey = getResources().getString(R.string.moviedb_api_3_key);
+        URL apiURLVideo = NetworkUtils.buildURL(NetworkUtils.VIDEOS, 1, apiKey, "en-US", "ID", movie.getId());
+
+        if (apiURLVideo == null){
+            return;
+        }
+
+        Bundle queryBundle = new Bundle();
+        LoaderManager loaderManager = getSupportLoaderManager();
+        Loader<String> loader = loaderManager.getLoader(ID_LOADER_VIDEO);
+
+        queryBundle.putString(ID_LOADER_EXTRA_URL, apiURLVideo.toString());
+
+
+        if (loader == null){
+            loaderManager.initLoader(ID_LOADER_VIDEO, queryBundle, this);
+        } else {
+            loaderManager.restartLoader(ID_LOADER_VIDEO, queryBundle, this);
+        }
+    }
+
     @Override
     protected void onStart() {
+        Log.d("LIFECYCLE", "onStart: state review"+this.isLoadedReview+", state video"+this.isLoadedVideos);
         super.onStart();
         boolean isOnline = NetworkUtils.isOnline((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE));
         if (isOnline) {
-            loadData();
+            if (!this.isLoadedReview)
+                loadData();
+            if (!this.isLoadedVideos)
+                loadVideos();
         }
     }
+
+
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
@@ -249,14 +291,82 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
             this.tv_reviewnone.setVisibility(View.VISIBLE);
             Log.d("UPDATE REVIEW", "updateReviewView: data ga ada");
         }
+        this.isLoadedReview = true;
     }
 
     private void updateVideoView(){
-
+        if (this.mVideo != null && this.mVideo.size() > 0){
+            this.progressBarVideo.setVisibility(View.INVISIBLE);
+            this.containerVideo.setVisibility(View.VISIBLE);
+            for(VideoMovieDB video : this.mVideo){
+                LayoutInflater layoutInflater = LayoutInflater.from(this);
+                View view = layoutInflater.inflate(R.layout.item_trailers, null, false);
+                TextView textTrailer = view.findViewById(R.id.tv_trailer_name);
+                textTrailer.setText(video.name);
+                final String key = video.key;
+                view.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View view) {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/watch?v="+key));
+                        Intent chooser = Intent.createChooser(intent, "Open With..");
+                        if (intent.resolveActivity(getPackageManager()) != null){
+                            startActivity(chooser);
+                        }
+                    }
+                });
+                this.containerVideo.addView(view);
+            }
+        } else {
+            this.containerVideo.setVisibility(View.INVISIBLE);
+            this.progressBarVideo.setVisibility(View.INVISIBLE);
+            this.tv_videonone.setVisibility(View.VISIBLE);
+            Log.d("UPDATE VIDEO", "updateVideoView: data ga ada");
+        }
+        this.isLoadedVideos = true;
     }
 
     @Override
     public void onLoaderReset(Loader<String> loader) {
 
+    }
+
+    @Override
+    protected void onResume() {
+        Log.d("LIFECYCLE", "onResume: ");
+        super.onResume();
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        Log.d("LIFECYCLE", "onSaveInstanceState: ");
+        super.onSaveInstanceState(outState);
+        outState.putBoolean("isLoadedReview", this.isLoadedReview);
+        outState.putBoolean("isLoadedVideos", this.isLoadedVideos);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        Log.d("LIFECYCLE", "onRestoreInstanceState: ");
+        super.onRestoreInstanceState(savedInstanceState);
+        this.isLoadedVideos = savedInstanceState.getBoolean("isLoadedVideos");
+        this.isLoadedReview = savedInstanceState.getBoolean("isLoadedReview");
+    }
+
+    @Override
+    protected void onPause() {
+        Log.d("LIFECYCLE", "onPause: ");
+        super.onPause();
+    }
+
+    @Override
+    protected void onStop() {
+        Log.d("LIFECYCLE", "onStop: ");
+        super.onStop();
+
+    }
+
+    @Override
+    protected void onRestart() {
+        super.onRestart();
     }
 }

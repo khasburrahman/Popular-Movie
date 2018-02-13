@@ -4,6 +4,7 @@ package com.khasburrahman.popularmovie;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
@@ -21,6 +22,7 @@ import android.widget.ProgressBar;
 import android.widget.Toast;
 
 import com.khasburrahman.popularmovie.adapter.AdapterPopularMovie;
+import com.khasburrahman.popularmovie.db.FavoriteMovieDBHelper;
 import com.khasburrahman.popularmovie.model.Movie;
 import com.khasburrahman.popularmovie.utility.FavoriteMovieHelper;
 import com.khasburrahman.popularmovie.utility.MovieDBJSONResultHelper;
@@ -77,6 +79,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     final static String SAVE_VISIBILITY_PROGRESSBAR = "visibilityprogressbar";
     final static String SAVE_TITLE = "savetitle";
 
+    FavoriteMovieDBHelper mDatabaseFavorite;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -105,7 +109,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
 
 
-
+        mDatabaseFavorite = new FavoriteMovieDBHelper(this);
         listMovie = new ArrayList<>();
         adapterPopularMovie = new AdapterPopularMovie(this, listMovie, this);
         this.rv_listPopularMovie.setAdapter(adapterPopularMovie);
@@ -218,6 +222,13 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     private void loadMovie(String type, int page, String movieId){
+        if (type.equals(REFRESH_FAVORITE)){
+            this.listMovie = mDatabaseFavorite.getAllMovie();
+            adapterPopularMovie.updateListMovie(this.listMovie);
+            this.pb_loadingPopularMovie.setVisibility(View.INVISIBLE);
+            this.rv_listPopularMovie.setVisibility(View.VISIBLE);
+            return;
+        }
         String apiKey = getResources().getString(R.string.moviedb_api_3_key);
         URL apiURL = NetworkUtils.buildURL(type, page, apiKey, "en-US", "ID", movieId);
         if (apiURL == null){
@@ -229,6 +240,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         queryBundle.putString(ID_BUNDLE_MOVIEDB_QUERY_EXTRA, apiURL.toString());
 
         int ID_LOADER;
+        //TODO : hapus movie id di loader
         if (movieId == null){
             ID_LOADER = ID_POPULAR_MOVIE_LOADER;
         } else {
@@ -323,7 +335,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         Intent intent = new Intent(this, MovieDetailActivity.class);
         Movie movie = this.listMovie.get(position);
         intent.putExtra("movie", movie);
-        intent.putExtra("isfavorite", FavoriteMovieHelper.isFavorite(movie.getId(), sharedPreferences));
+        intent.putExtra("isfavorite", mDatabaseFavorite.isFavorite(movie.getId()));
         this.startActivityForResult(intent, REQUEST_CODE_DETAIL_ACTIVITY);
     }
 
@@ -356,12 +368,9 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         } else{
             //TODO bikin favorit
             this.rv_listPopularMovie.setVisibility(View.INVISIBLE);
+            this.pb_loadingPopularMovie.setVisibility(View.VISIBLE);
             adapterPopularMovie.clearData();
-            ArrayList<String> listFavoriteMovie = FavoriteMovieHelper.getAllFavoriteMovie(sharedPreferences);
-            mRequestFavoriteMovie = listFavoriteMovie.size();
-            for(String movieId : listFavoriteMovie){
-                loadMovie(REFRESH_FAVORITE, 0, movieId);
-            }
+            loadMovie(REFRESH_FAVORITE, 0, null);
         }
     }
 
