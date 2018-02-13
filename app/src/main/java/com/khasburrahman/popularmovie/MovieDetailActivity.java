@@ -187,7 +187,7 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
 
     @Override
     protected void onStart() {
-        Log.d("LIFECYCLE", "onStart: state review"+this.isLoadedReview+", state video"+this.isLoadedVideos);
+        Log.d("LIFECYCLE", "onStart: isLoadedReview : "+this.isLoadedReview+", isLoadedVideos "+this.isLoadedVideos);
         super.onStart();
         boolean isOnline = NetworkUtils.isOnline((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE));
         if (isOnline) {
@@ -340,8 +340,8 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
     protected void onSaveInstanceState(Bundle outState) {
         Log.d("LIFECYCLE", "onSaveInstanceState: ");
         super.onSaveInstanceState(outState);
-        outState.putBoolean("isLoadedReview", this.isLoadedReview);
-        outState.putBoolean("isLoadedVideos", this.isLoadedVideos);
+        outState.putBoolean("isLoadedReview", false);
+        outState.putBoolean("isLoadedVideos", false);
     }
 
     @Override
@@ -361,8 +361,18 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
     @Override
     protected void onStop() {
         Log.d("LIFECYCLE", "onStop: ");
+        this.containerVideo.removeAllViews();
+        this.containerReview.removeAllViews();
+        this.isLoadedVideos = false;
+        this.isLoadedReview = false;
         super.onStop();
 
+    }
+
+    @Override
+    protected void onDestroy() {
+        Log.d("LIFECYCLE", "onDestroy: ");
+        super.onDestroy();
     }
 
     @Override
