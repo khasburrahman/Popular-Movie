@@ -18,10 +18,11 @@
         android:orientation="horizontal">
 
         <ImageView
-            android:layout_width="wrap_content"
+            android:layout_marginLeft="20dp"
+            android:layout_width="40dp"
             android:layout_height="wrap_content"
             app:srcCompat="@android:drawable/ic_media_play"
-            android:layout_weight="1"/>
+            />
 
         <TextView
             android:id="@+id/tv_trailer_name"
@@ -29,7 +30,6 @@
             android:layout_height="wrap_content"
             android:paddingHorizontal="6dp"
             android:text="dsaddsadsax"
-            android:layout_weight="4"
             android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
 
     </LinearLayout>

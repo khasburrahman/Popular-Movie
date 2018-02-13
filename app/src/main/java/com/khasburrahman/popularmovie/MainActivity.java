@@ -119,7 +119,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             onRestoreInstanceState(savedInstanceState);
             refreshView(typeMovie);
         } else {
-            this.typeMovie = REFRESH_POPULAR;
+            this.typeMovie = sharedPreferences.getString("typeMovie", REFRESH_POPULAR);
         }
 
 
@@ -342,34 +342,39 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
+        SharedPreferences.Editor editor = sharedPreferences.edit();
         switch (id){
             case R.id.action_get_favorites:
                 this.typeMovie = REFRESH_FAVORITE;
+                editor.putString("typeMovie", REFRESH_FAVORITE);
                 refreshView(REFRESH_FAVORITE);
                 setTitle("Favorite Movies");
                 break;
             case R.id.action_get_popular:
                 this.typeMovie = REFRESH_POPULAR;
+                editor.putString("typeMovie", REFRESH_POPULAR);
                 refreshView(REFRESH_POPULAR);
                 setTitle("Popular Movies");
                 break;
             case R.id.action_get_top:
                 this.typeMovie = REFRESH_TOP;
+                editor.putString("typeMovie", REFRESH_TOP);
                 refreshView(REFRESH_TOP);
                 setTitle("Top Rated Movies");
                 break;
         }
+        editor.commit();
         return super.onOptionsItemSelected(item);
     }
 
     private void refreshView(String refreshId){
+        adapterPopularMovie.clearData();
         if (!refreshId.equals(REFRESH_FAVORITE)){
             loadMovie(refreshId, 1, null);
         } else{
             //TODO bikin favorit
             this.rv_listPopularMovie.setVisibility(View.INVISIBLE);
             this.pb_loadingPopularMovie.setVisibility(View.VISIBLE);
-            adapterPopularMovie.clearData();
             loadMovie(REFRESH_FAVORITE, 0, null);
         }
     }
@@ -409,6 +414,15 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         super.onStop();
         for (int id : loaderIdList){
             getLoaderManager().destroyLoader(id);
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_CODE_DETAIL_ACTIVITY && resultCode == -1){
+            Log.d("LIFECYCLE", "onActivityResult: "+typeMovie);
+            refreshView(typeMovie);
         }
     }
 }

@@ -110,10 +110,12 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
             public void onClick(View view) {
                 if (!isFavorite){
                     mDatabaseFavorite.addFavoriteMovie(movie);
+                    isFavorite = true;
                     btn_favorite.setText("Delete as Favorite");
                     Toast.makeText(MovieDetailActivity.this, "Added as Favorite", Toast.LENGTH_SHORT).show();
                 } else {
                     mDatabaseFavorite.deleteFavoriteMovie(movie.getId());
+                    isFavorite = false;
                     btn_favorite.setText("Mark as Favorite");
                     Toast.makeText(MovieDetailActivity.this, "Removed as Favorite", Toast.LENGTH_SHORT).show();
                 }
@@ -133,8 +135,7 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
         }
 
         if (savedInstanceState != null){
-            this.isLoadedVideos = savedInstanceState.getBoolean("isLoadedVideos");
-            this.isLoadedReview = savedInstanceState.getBoolean("isLoadedReview");
+            onRestoreInstanceState(savedInstanceState);
         }
 
 
@@ -204,10 +205,17 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
         if(id == android.R.id.home){
+            setResult(RESULT_OK);
             this.finish();
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onBackPressed() {
+        setResult(RESULT_OK);
+        this.finish();
     }
 
     @Override
@@ -340,16 +348,23 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
     protected void onSaveInstanceState(Bundle outState) {
         Log.d("LIFECYCLE", "onSaveInstanceState: ");
         super.onSaveInstanceState(outState);
-        outState.putBoolean("isLoadedReview", false);
-        outState.putBoolean("isLoadedVideos", false);
+        outState.putBoolean("isFavorite", isFavorite);
+//        outState.putBoolean("isLoadedReview", false);
+//        outState.putBoolean("isLoadedVideos", false);
     }
 
     @Override
     protected void onRestoreInstanceState(Bundle savedInstanceState) {
         Log.d("LIFECYCLE", "onRestoreInstanceState: ");
         super.onRestoreInstanceState(savedInstanceState);
-        this.isLoadedVideos = savedInstanceState.getBoolean("isLoadedVideos");
-        this.isLoadedReview = savedInstanceState.getBoolean("isLoadedReview");
+        this.isFavorite = savedInstanceState.getBoolean("isFavorite");
+        if (this.isFavorite){
+            btn_favorite.setText("Delete as Favorite");
+        } else {
+            btn_favorite.setText("Mark as Favorite");
+        }
+//        this.isLoadedVideos = savedInstanceState.getBoolean("isLoadedVideos");
+//        this.isLoadedReview = savedInstanceState.getBoolean("isLoadedReview");
     }
 
     @Override
@@ -366,7 +381,6 @@ public class MovieDetailActivity extends AppCompatActivity implements LoaderMana
         this.isLoadedVideos = false;
         this.isLoadedReview = false;
         super.onStop();
-
     }
 
     @Override
