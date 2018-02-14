@@ -4,7 +4,6 @@ package com.khasburrahman.popularmovie;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.database.sqlite.SQLiteDatabase;
 import android.net.ConnectivityManager;
 import android.support.v4.app.LoaderManager;
 import android.support.v4.content.AsyncTaskLoader;
@@ -24,7 +23,6 @@ import android.widget.Toast;
 import com.khasburrahman.popularmovie.adapter.AdapterPopularMovie;
 import com.khasburrahman.popularmovie.db.FavoriteMovieDBHelper;
 import com.khasburrahman.popularmovie.model.Movie;
-import com.khasburrahman.popularmovie.utility.FavoriteMovieHelper;
 import com.khasburrahman.popularmovie.utility.MovieDBJSONResultHelper;
 import com.khasburrahman.popularmovie.utility.NetworkUtils;
 
@@ -87,6 +85,16 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        //load typeview dari bundle
+        sharedPreferences = getSharedPreferences(ID_APP_SHARED_PREF, MODE_PRIVATE);
+        this.typeMovie = sharedPreferences.getString("typeMovie", REFRESH_POPULAR);
+        if (savedInstanceState != null){
+            this.setTitle(savedInstanceState.getString(SAVE_TITLE));
+            this.pb_loadingPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_PROGRESSBAR));
+            this.rv_listPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_RECYCLERVIEW));
+            this.TOTAL_FAVORITE = savedInstanceState.getInt(ID_BUNDLE_TOTAL_FAV);
+        }
+
         //recycler view, pakai grid layout manager, fixed size == false
         rv_listPopularMovie = findViewById(R.id.rv_listPopularMovie);
         int orientation = getResources().getConfiguration().orientation;
@@ -99,7 +107,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         rv_listPopularMovie.setHasFixedSize(false);
         pb_loadingPopularMovie = findViewById(R.id.pb_loading_popular_movie);
 
-        sharedPreferences = getSharedPreferences(ID_APP_SHARED_PREF, MODE_PRIVATE);
 
         //init loader
 //        for (int i = 0; i < TOTAL_FAVORITE; i++){
@@ -113,15 +120,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         listMovie = new ArrayList<>();
         adapterPopularMovie = new AdapterPopularMovie(this, listMovie, this);
         this.rv_listPopularMovie.setAdapter(adapterPopularMovie);
-
-        //load typeview dari bundle
-        if (savedInstanceState != null){
-            onRestoreInstanceState(savedInstanceState);
-            refreshView(typeMovie);
-        } else {
-            this.typeMovie = sharedPreferences.getString("typeMovie", REFRESH_POPULAR);
-        }
-
 
     }
 
@@ -189,39 +187,11 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         LoaderTask task = new LoaderTask(this);
         task.setIdBundle(i, args);
         return task;
-//        return new AsyncTaskLoader<String>(this) {
-//            @Override
-//            protected void onStartLoading() {
-//                if (args == null){
-//                    return;
-//                }
-//                if (i == ID_POPULAR_MOVIE_LOADER) {
-//                    rv_listPopularMovie.setVisibility(View.INVISIBLE);
-//                    pb_loadingPopularMovie.setVisibility(View.VISIBLE);
-//                }
-//                forceLoad();
-//            }
-//
-//            @Override
-//            public String loadInBackground() {
-//                String queryURLString = args.getString(ID_BUNDLE_MOVIEDB_QUERY_EXTRA);
-//                if (queryURLString == null || TextUtils.isEmpty(queryURLString)){
-//                    return null;
-//                }
-//                try {
-//                    URL queryURL = new URL(queryURLString);
-//                    String result = NetworkUtils.getResponseFromHTTPUrl(queryURL);
-//                    return result;
-//
-//                } catch (IOException e){
-//                    e.printStackTrace();
-//                    return null;
-//                }
-//            }
-//        };
     }
 
-    private void loadMovie(String type, int page, String movieId){
+    private void loadMovie(String type, int page){
+        LoaderManager loaderManager = getSupportLoaderManager();
+
         if (type.equals(REFRESH_FAVORITE)){
             this.listMovie = mDatabaseFavorite.getAllMovie();
             adapterPopularMovie.updateListMovie(this.listMovie);
@@ -230,9 +200,9 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
             return;
         }
         String apiKey = getResources().getString(R.string.moviedb_api_3_key);
-        URL apiURL = NetworkUtils.buildURL(type, page, apiKey, "en-US", "ID", movieId);
+        URL apiURL = NetworkUtils.buildURL(type, page, apiKey, "en-US", "ID", null);
         if (apiURL == null){
-            Log.d("LOAD MOVIE", "loadMovie: yang dimasukkan null,"+type+","+page+","+movieId);
+            Log.d("LOAD MOVIE", "loadMovie: yang dimasukkan null,"+type+","+page);
             return;
         }
 
@@ -240,23 +210,15 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         queryBundle.putString(ID_BUNDLE_MOVIEDB_QUERY_EXTRA, apiURL.toString());
 
         int ID_LOADER;
-        //TODO : hapus movie id di loader
-        if (movieId == null){
-            ID_LOADER = ID_POPULAR_MOVIE_LOADER;
-        } else {
-            ID_LOADER = ID_DETAIL_MOVIE_LOADER_START+mRequestFavoriteMovie;
-            --mRequestFavoriteMovie;
-        }
-        loaderIdList.add(ID_LOADER);
+        ID_LOADER = ID_POPULAR_MOVIE_LOADER;
 
-        LoaderManager loaderManager = getSupportLoaderManager();
         Loader<String> movieLoader = loaderManager.getLoader(ID_LOADER);
 
         if (movieLoader == null){
-            Log.d("LOADING DATA FROM NULL LOADER", "loadMovie: "+this.typeMovie);
+            Log.d("LOADING DATA", "loadMovie: "+this.typeMovie);
             loaderManager.initLoader(ID_LOADER, queryBundle, this);
         } else {
-            Log.d("LOADING DATA FROM NOT NULL LOADER", "loadMovie: "+typeMovie);
+            Log.d("LOADING DATA", "loadMovie: "+typeMovie);
             loaderManager.restartLoader(ID_LOADER, queryBundle, this);
         }
     }
@@ -277,15 +239,16 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         if (jsonObjectMovieDB != null) {
             int loaderID = loader.getId();
             //if load the detail movie, (favorite)
-            if (loaderID >= ID_DETAIL_MOVIE_LOADER_START){
-                onLoadFinishedDetailMovie(jsonObjectMovieDB);
-            } else {
+            if (loaderID == ID_POPULAR_MOVIE_LOADER){
                 onLoadFinishedMovieList(jsonObjectMovieDB);
             }
 
             adapterPopularMovie.updateListMovie(this.listMovie);
             rv_listPopularMovie.setVisibility(View.VISIBLE);
         }
+
+        LoaderManager loaderManager = getSupportLoaderManager();
+        loaderManager.destroyLoader(ID_POPULAR_MOVIE_LOADER);
 
     }
 
@@ -294,14 +257,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         this.listMovie = MovieDBJSONResultHelper.getMovieList(jsonObjectMovieDB);
         this.TOTAL_PAGES = MovieDBJSONResultHelper.getTotalPages(jsonObjectMovieDB);
         this.TOTAL_RESULTS = MovieDBJSONResultHelper.getTotalResults(jsonObjectMovieDB);
-    }
-
-    private static int mRequestFavoriteMovie = 0;
-    public void onLoadFinishedDetailMovie(JSONObject jsonObject){
-        Log.d("LOADING DATA FINISHED", "onLoadFinishedDetailMovie: "+typeMovie);
-        this.listMovie.add(new Movie(jsonObject));
-        this.TOTAL_PAGES = 0;
-        this.TOTAL_RESULTS = 0;
     }
 
     @Override
@@ -317,7 +272,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         outState.putInt(SAVE_VISIBILITY_PROGRESSBAR, this.pb_loadingPopularMovie.getVisibility());
         outState.putInt(SAVE_VISIBILITY_RECYCLERVIEW, this.rv_listPopularMovie.getVisibility());
         outState.putInt(ID_BUNDLE_TOTAL_FAV, this.TOTAL_FAVORITE);
-        outState.putString(ID_BUNDLE_TYPE_SHOWN, this.typeMovie);
     }
 
     @Override
@@ -326,7 +280,6 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         this.setTitle(savedInstanceState.getString(SAVE_TITLE));
         this.pb_loadingPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_PROGRESSBAR));
         this.rv_listPopularMovie.setVisibility(savedInstanceState.getInt(SAVE_VISIBILITY_RECYCLERVIEW));
-        this.typeMovie = savedInstanceState.getString(ID_BUNDLE_TYPE_SHOWN);
         this.TOTAL_FAVORITE = savedInstanceState.getInt(ID_BUNDLE_TOTAL_FAV);
     }
 
@@ -368,14 +321,15 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     }
 
     private void refreshView(String refreshId){
+        Log.d("MNACT", "refreshView: "+typeMovie);
         adapterPopularMovie.clearData();
         if (!refreshId.equals(REFRESH_FAVORITE)){
-            loadMovie(refreshId, 1, null);
+            loadMovie(refreshId, 1);
         } else{
             //TODO bikin favorit
             this.rv_listPopularMovie.setVisibility(View.INVISIBLE);
             this.pb_loadingPopularMovie.setVisibility(View.VISIBLE);
-            loadMovie(REFRESH_FAVORITE, 0, null);
+            loadMovie(REFRESH_FAVORITE, 0);
         }
     }
 
@@ -388,6 +342,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
 
     @Override
     protected void onResume() {
+        Log.d("MNACT", "onResume: "+typeMovie);
         super.onResume();
         Log.d("LOADING DATA ON RESUME", "onResume: "+this.typeMovie+", datasize : "+listMovie.size());
         if (this.listMovie.size() > 0){
@@ -395,7 +350,7 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
         }
         boolean isOnline = NetworkUtils.isOnline((ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE));
         if (isOnline) {
-            loadMovie(this.typeMovie, 1, null);
+            loadMovie(this.typeMovie, 1);
 
         } else
             Toast.makeText(this, "Please Ensure Network Connection is Established", Toast.LENGTH_SHORT).show();
@@ -411,10 +366,8 @@ public class MainActivity extends AppCompatActivity implements LoaderManager.Loa
     protected void onStop() {
         this.listMovie.clear();
         this.adapterPopularMovie.notifyDataSetChanged();
+        rv_listPopularMovie.destroyDrawingCache();
         super.onStop();
-        for (int id : loaderIdList){
-            getLoaderManager().destroyLoader(id);
-        }
     }
 
     @Override
